@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CheatTable CheatEngineTableVersion="29">
+  <CheatEntries>
+    <CheatEntry>
+      <ID>52</ID>
+      <Description>"人物当前血量"</Description>
+      <LastState Value="100" Activated="1" RealAddress="2D49D77C"/>
+      <VariableType>4 Bytes</VariableType>
+      <Address>"libhl.dll"+00048184</Address>
+      <Offsets>
+        <Offset>10C</Offset>
+        <Offset>64</Offset>
+        <Offset>58</Offset>
+        <Offset>0</Offset>
+        <Offset>42C</Offset>
+      </Offsets>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>53</ID>
+      <Description>"训练场看守者血量"</Description>
+      <LastState Value="5088" RealAddress="2AE23D1C"/>
+      <VariableType>4 Bytes</VariableType>
+      <Address>"libhl.dll"+00048184</Address>
+      <Offsets>
+        <Offset>10C</Offset>
+        <Offset>104</Offset>
+        <Offset>18</Offset>
+        <Offset>0</Offset>
+        <Offset>64C</Offset>
+      </Offsets>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>56</ID>
+      <Description>"人物左右位置"</Description>
+      <LastState Value="46" RealAddress="2D49D6D4"/>
+      <VariableType>4 Bytes</VariableType>
+      <Address>"libhl.dll"+00048184</Address>
+      <Offsets>
+        <Offset>64</Offset>
+        <Offset>64</Offset>
+        <Offset>18</Offset>
+        <Offset>0</Offset>
+        <Offset>650</Offset>
+      </Offsets>
+    </CheatEntry>
+    <CheatEntry>
+      <ID>58</ID>
+      <Description>"训练场看守者左右位置"</Description>
+      <LastState Value="65" RealAddress="2AE23C74"/>
+      <VariableType>4 Bytes</VariableType>
+      <Address>"libhl.dll"+00048184</Address>
+      <Offsets>
+        <Offset>64</Offset>
+        <Offset>104</Offset>
+        <Offset>18</Offset>
+        <Offset>0</Offset>
+        <Offset>64C</Offset>
+      </Offsets>
+    </CheatEntry>
+  </CheatEntries>
+  <UserdefinedSymbols/>
+</CheatTable>
