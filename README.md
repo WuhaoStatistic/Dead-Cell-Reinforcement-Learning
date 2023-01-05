@@ -1,7 +1,7 @@
 # Dead-Cell-Reinforcement-Learning
 
-This is the repo for reinforcement learning. Play around with Dead Cell this game!
-some reference from [ailec0623](https://github.com/ailec0623/DQN_HollowKnight)
+This is the repo for reinforcement learning. Play around with Dead Cell this game!  
+**Get a lot of help from [ailec0623](https://github.com/ailec0623/DQN_HollowKnight), please also star their work!**
 
 ### Update Log
 
