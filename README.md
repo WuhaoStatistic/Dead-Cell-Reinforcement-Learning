@@ -19,7 +19,7 @@ add necessary tools
 
 1 Try to use rgb data to train, but later found it unnecessary. Since the needed features from images are only boss and character movement, which have nothing to do with color. Meanwhile, using rgb data will cause cauculations increase three times than before.  
 
-2 fix reset() function in DC environment (also pay attention to this function even when you apply this repo on Dead Cell, it behaves differently on different computer)
+2 fix reset() function in game_environment.py (also pay attention to this function even when you apply this repo on Dead Cell, it behaves differently on different computer)
 
 3 adding more comments within code lines for better reading experience.
 
@@ -43,4 +43,4 @@ differ, the time for holding the key will also different (**especially when quit
 
 4 when running simple extractor & duling mlp with noisy linear and batch size 32, it only posses around half of GPU memory in my computer (RTX3090), which is roughly 14GB, you can adjust model and batch size according to this.
 
-5 pay attention to action class, name prefix has impact on action behave (how to press key) in DCenv.py
+5 pay attention to action class, name prefix has impact on action behave (how to press key) in game_environment.py
