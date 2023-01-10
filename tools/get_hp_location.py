@@ -59,7 +59,6 @@ class Hp_getter():
                                             ctypes.byref(offset_address), 4, None)  # 4 means 4 bytes data
         return offset_address.value
 
-
     def get_self_location(self):
         base_address = self.libhl + 0x00048184
         offset_address = ctypes.c_long()
@@ -90,13 +89,22 @@ class Hp_getter():
                                             ctypes.byref(offset_address), 4, None)  # 4 means 4 bytes data
         return offset_address.value
 
+    def get_distance(self):
+        return abs(self.get_boss_loca() - self.get_self_location())
 
-cl = Hp_getter()
-while (1):
-    sh = cl.get_self_hp()
-    bh = cl.get_boss_hp()
-    sl = cl.get_self_location()
-    bl = cl.get_boss_loca()
-    print('self location is : {} ; boss location is: {} '.format(sl, bl))
-    print('self health is : {} ; boss health is: {} '.format(sh, bh))
-    time.sleep(1)
+
+# cl = Hp_getter()
+# while (1):
+#     sh = cl.get_self_hp()
+#     bh = cl.get_boss_hp()
+#     sl = cl.get_self_location()
+#     bl = cl.get_boss_loca()
+#     print('self location is : {} ; boss location is: {} '.format(sl, bl))
+#     print('self health is : {} ; boss health is: {} '.format(sh, bh))
+#     time.sleep(0.02)
+#     if bh == 1 and sh > 1:
+#         print('win')
+#         break
+#     if sh == 1 and sl == 0:
+#         print('loss')
+#         break

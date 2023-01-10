@@ -52,75 +52,12 @@ def boss_hp_reward(next_boss_hp, current_boss_hp):
 
 # in the boss room
 # x range is from 46 to 60
-def direction_reward(move, player_x, hornet_x):
-    base = 5
-    if abs(player_x - hornet_x) < 2.5:
-        dis = -1
-    else:
-        dis = 1
-    if player_x - hornet_x > 0:
-        s = -1
-    else:
-        s = 1
-    if move == 0 or move == 2:
-        dire = -1
-    else:
-        dire = 1
 
-    return dire * s * dis * base
-
-
-def distance_reward(move, next_player_x, next_hornet_x):
-    if abs(next_player_x - next_hornet_x) < 2.5:
-        return -6
-    elif abs(next_player_x - next_hornet_x) < 4.8:
+def distance_reward(distance):
+    if distance < 6:
         return 4
     else:
-        if move < 2:
-            return 4
-        else:
-            return -2
-
-
-def move_judge(self_blood, next_self_blood, player_x, next_player_x, hornet_x, next_hornet_x, move, hornet_skill1):
-    if hornet_skill1:
-        # run away while distance < 5
-        if abs(player_x - hornet_x) < 6:
-            # change direction while hornet use skill
-            if move == 0 or move == 2:
-                dire = 1
-            else:
-                dire = -1
-            if player_x - hornet_x > 0:
-                s = -1
-            else:
-                s = 1
-            # if direction is correct and use long move
-            if dire * s == 1 and move < 2:
-                return 10
-        # do not do long move while distance > 5
-        else:
-            if move >= 2:
-                return 10
-        return -10
-
-    dis = abs(player_x - hornet_x)
-    dire = player_x - hornet_x
-    if move == 0:
-        if (dis > 5 and dire > 0) or (dis < 2.5 and dire < 0):
-            return 10
-    elif move == 1:
-        if (dis > 5 and dire < 0) or (dis < 2.5 and dire > 0):
-            return 10
-    elif move == 2:
-        if dis > 2.5 and dis < 5 and dire > 0:
-            return 10
-    elif move == 3:
-        if dis > 2.5 and dis < 5 and dire < 0:
-            return 10
-
-    # reward = direction_reward(move, player_x, hornet_x) + distance_reward(move, player_x, hornet_x)
-    return -10
+        return -1
 
 
 def action_judge(boss_blood, next_boss_blood, self_blood, next_self_blood, next_player_x, next_boss_x, action):
@@ -129,10 +66,6 @@ def action_judge(boss_blood, next_boss_blood, self_blood, next_self_blood, next_
         self_blood_reward = self_hp_reward(next_self_blood, self_blood)
         boss_blood_reward = boss_hp_reward(next_boss_blood, boss_blood)
         reward = self_blood_reward + boss_blood_reward
-        if action == 4:
-            reward *= 1.5
-        elif action == 5:
-            reward *= 0.5
         done = 1
         return reward, done
 
@@ -141,10 +74,6 @@ def action_judge(boss_blood, next_boss_blood, self_blood, next_self_blood, next_
         self_blood_reward = self_hp_reward(next_self_blood, self_blood)
         boss_blood_reward = boss_hp_reward(next_boss_blood, boss_blood)
         reward = self_blood_reward + boss_blood_reward
-        if action == 4:
-            reward *= 1.5
-        elif action == 5:
-            reward *= 0.5
         done = 2
         return reward, done
     # playing
@@ -153,10 +82,6 @@ def action_judge(boss_blood, next_boss_blood, self_blood, next_self_blood, next_
         boss_blood_reward = boss_hp_reward(next_boss_blood, boss_blood)
 
         reward = self_blood_reward + boss_blood_reward
-        if action == 4:
-            reward *= 1.5
-        elif action == 5:
-            reward *= 0.5
         done = 0
         return reward, done
 

@@ -47,20 +47,6 @@ def Move_Right():
 
 
 # 2
-def Turn_Left():
-    PressKey(A)
-    time.sleep(0.01)
-    ReleaseKey(A)
-
-
-# 3
-def Turn_Right():
-    PressKey(D)
-    time.sleep(0.01)
-    ReleaseKey(D)
-
-
-# 4
 def Single_Jump():
     PressKey(W)
     time.sleep(0.02)
@@ -69,7 +55,7 @@ def Single_Jump():
     time.sleep(0.01)
 
 
-# 5
+# 3
 def Double_Jump():
     PressKey(W)
     time.sleep(0.02)
