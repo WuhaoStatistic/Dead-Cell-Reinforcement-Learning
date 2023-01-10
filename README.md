@@ -19,7 +19,7 @@ add necessary tools
 
 1 Try to use rgb data to train, but later found it unnecessary. Since the needed features from images are only boss and character movement, which have nothing to do with color. Meanwhile, using rgb data will cause cauculations increase three times than before.  
 
-2 fix reset() function in game_environment.py (also pay attention to this function even when you apply this repo on Dead Cell, it behaves differently on different computer)
+2 fix `reset()` function in game_environment.py (also pay attention to this function even when you apply this repo on Dead Cell, it behaves differently on different computer)
 
 3 adding more comments within code lines for better reading experience.
 
@@ -29,7 +29,7 @@ add necessary tools
 
 1/10 2023
 
-1 change the logic of load_exploration() and learn() in trainer.py
+1 change the logic of `load_exploration()` and `learn()` in trainer.py
 
 ### Important Features
 
