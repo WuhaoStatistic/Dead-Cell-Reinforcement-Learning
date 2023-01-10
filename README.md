@@ -27,7 +27,9 @@ add necessary tools
 
 5 add more pring info to inspect training.
 
+1/10 2023
 
+1 change the logic of load_exploration() and learn() in trainer.py
 
 ### Important Features
 
