@@ -31,6 +31,10 @@ add necessary tools
 
 1 change the logic of `load_exploration()` and `learn()` in trainer.py
 
+1/11 2023
+
+fix all bugs now it can run whole forward and backward adding necessary comments for better reading.
+
 ### Important Features
 
 here contains some points you may need to concern. All those things are mentioned in code comments.
