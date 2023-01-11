@@ -113,11 +113,12 @@ class Buffer:
     def _to_numpy(batch):
         obs, act, rew, obs_next, done = [], [], [], [], []
         for o, a, r, o_, d in batch:
-            obs.append(o)
+            obs.append(o)    # obs shape in buffer, each shape is (n_frame*c,H,W) see trainer.py load_exploration.py
             act.append(a)
             rew.append(r)
             obs_next.append(o_)
             done.append(d)
+
         return (np.array(obs, copy=True, dtype=np.float32),
                 np.array(act, copy=True, dtype=np.int64)[:, np.newaxis],
                 np.array(rew, copy=True, dtype=np.float32)[:, np.newaxis],

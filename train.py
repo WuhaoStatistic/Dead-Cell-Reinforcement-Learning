@@ -28,25 +28,24 @@ def train(dqn):
     dqn.save_explorations(1)  # This will run a env.reset function, so make sure you are n
     dqn.load_explorations()
     # raise ValueError
-    print('dqn warm up')
     dqn.learn()  # warmup
-    print('dqn warm up finished')
-
     saved_rew = float('-inf')
     saved_train_rew = float('-inf')
-    for i in range(1, 301):
+    for i in range(1, 3):
         print('episode', i)
         rew, loss, lr = dqn.run_episode()
         if rew > saved_train_rew:
-            print('new best train model found')
+            print('------------new best train model found----------------')
             saved_train_rew = rew
             dqn.save_models('best_train')
-        if i % 10 == 0:
+        if i % 2 == 0:
+            print('----------------------start eval-----------------------')
             eval_rew = dqn.evaluate()
             if eval_rew > saved_rew:
                 print('new best eval model found')
                 saved_rew = eval_rew
                 dqn.save_models('best')
+            print('--------------------finish eval------------------------')
         dqn.save_models('latest')
 
         dqn.log({'reward': rew, 'loss': loss}, i)
@@ -57,12 +56,16 @@ def train(dqn):
 
 def main():
     n_frames = 4  # This parameter is used in multi step buffer, n_frames pictures will packed together
-                  # in this task rgb or gray is the same, cuz we care only about the move of boss and play.
-                  # so gray is used here
-    shape = (224, 224)  # the resolution of image
+    # in this task rgb or gray is the same, cuz we care only about the move of boss and play.
+    # so gray is used here
+    shape = (400, 400)  # the resolution of image
 
     env = game_environment.DCEnv(shape, w1=0.8, w2=0.78, w3=1e-4)
     m = get_model(env, n_frames)
+    # prefix can be 'best' 'best_train' 'latest'
+    # 'best' is best in evaluation
+    # 'best_train' is best in training
+    # 'latest' is the latest model saved every episode
     replay_buffer = buffer.MultistepBuffer(100000, n=10, gamma=0.98)
     # prioritized={
     #     'alpha': 0.6,
@@ -83,7 +86,9 @@ def main():
                           is_double=True,
                           DrQ=True,
                           reset=0,  # no reset
-                          no_save=False)
+                          no_save=False,
+                          prefix='best',
+                          new_optimizer=False)
 
     print('--------------start--------------')
     train(dqn)

@@ -42,7 +42,9 @@ def get_model(env: gym.Env, n_frames: int):
 #                       reset=0,  # no reset
 #                       no_save=False)
 # dqn.load_explorations()
-# dqn.learn()
+# obs, act, rew, obs_next, done = dqn.replay_buffer.sample(32)
+# print(obs.shape)
+# #dqn.run_episode()
 # a = np.ones((30, 3, 5, 5))
 # b = random.sample(list(a), 5)
 # print(np.array(b).shape)
@@ -52,6 +54,9 @@ def get_model(env: gym.Env, n_frames: int):
 # action_lst = arrs['a']
 # rew_lst = arrs['r']
 # done_lst = arrs['d']
+# for i in obs_lst:
+#     if i.shape != (1, 224, 224):
+#         print(i.shape)
 
 # a = np.transpose(obs_lst[20], (1, 2, 0))
 # plt.imshow(a)
@@ -63,5 +68,6 @@ def get_model(env: gym.Env, n_frames: int):
 # a = torch.randn((1, 5, 4, 5))
 # print(np.concatenate((a, b), axis=1)[:,2:,:,:].shape)
 
-a = [1, 2, [3, 4], [45]]
-np.array(a, copy=True, dtype=np.float32)
+# a = [1, 2, [3, 4], [45]]
+# np.array(a, copy=True, dtype=np.float32)
+print(np.ones((2, 3))[np.newaxis, ...].shape)

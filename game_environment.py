@@ -245,12 +245,12 @@ class DCEnv(gym.Env):
         if win:  # extra reward for winning based on conditions
             time_rew = 5. / (time.time() - self._episode_time)
             reward += self_hp / 40. + time_rew
-            print('win this episode')
+            print('-------------------------win this episode-------------------------')
             self.win_epi += 1
             self.total_epi += 1
         elif lose:
             reward -= boss_hp / 5.
-            print('lose this episode')
+            print('-------------------------lose this episode-------------------------')
             self.total_epi += 1
         self.prev_self_hp = self_hp
         self.prev_boss_hp = boss_hp
@@ -292,7 +292,7 @@ class DCEnv(gym.Env):
 
     def reset(self, seed=None, option=None):
         super(DCEnv, self).reset(seed=seed)
-        print('reset')
+        print('-------------------------reset-------------------------')
         self.cleanup()
         while self.cl.get_self_location() < 100:  # still in boss room waiting to quit
             time.sleep(5)  # longer time here more stable this function
@@ -314,7 +314,9 @@ class DCEnv(gym.Env):
             if 128 <= self.cl.get_self_location() <= 131:  # press r to enter boss room
                 pyautogui.press('r')
                 time.sleep(3)
+        print('--------------------------------------------------------')
         print('entered boss room')
+        print('--------------------------------------------------------')
         while self.cl.get_boss_hp() == 0:  # loading boss room
             time.sleep(3)
         while self.cl.get_self_location() < 46:  # need to move from 20 to 46

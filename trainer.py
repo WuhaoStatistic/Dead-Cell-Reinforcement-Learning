@@ -18,7 +18,7 @@ class Trainer:
                  n_frames, gamma, eps, eps_func, target_steps, learn_freq,
                  model, lr, criterion, batch_size, device,
                  is_double=True, DrQ=False, reset=0,
-                 save_loc=None, no_save=False):
+                 save_loc=None, no_save=False, prefix=None,new_optimizer=False):
         """
         Initialize a DQN trainer
         :param env: any gym environment (pixel based recommended but not required)
@@ -44,6 +44,9 @@ class Trainer:
         :param save_loc: save location for
                 tensorboard logger and model checkpoints (None for default)
         :param no_save: True if avoid saving logs and models
+        :param prefix: prefix for loading model 'best' 'best_train' 'latest' see load_model() for details
+                    'EOFError: Ran out of input' will show if file is empty or doesn't exist
+        :param new_optimizer: True to use new optimizer, only take effect when prefix is not None
         """
         self.env = env
         self.replay_buffer = replay_buffer
@@ -57,8 +60,11 @@ class Trainer:
         self.learn_freq = max(1, int(learn_freq))
         self.num_batches = max(1, int(1. / learn_freq))
         self.channel = 3 if self.env.rgb else 1
-        self.model = model.to(device)
+        self.model = model
         self.target_model = copy.deepcopy(self.model)
+        self.load_model(prefix, new_optimizer)
+        self.model = self.model.to(device)
+        self.target_model = self.target_model.to(device)
         self.init_lr = lr
         self.final_lr = lr * 0.5
         self.optimizer = torch.optim.NAdam(self.model.parameters(), lr=lr, eps=1.5e-4)
@@ -96,7 +102,9 @@ class Trainer:
                         + 'Deadcell') if save_loc is None else save_loc
             assert not save_loc.endswith('\\')
             save_loc = save_loc if save_loc.endswith('/') else f'{save_loc}/'
+            print('--------------------------------------------------------')
             print('save files at', save_loc)
+            print('--------------------------------------------------------')
             self.save_loc = save_loc
             if not os.path.exists(self.save_loc):
                 os.makedirs(self.save_loc)
@@ -185,13 +193,12 @@ class Trainer:
             for group in self.optimizer.param_groups:
                 group['lr'] = max(self.final_lr,
                                   group['lr'] - decay)
-        initial, _ = self.env.reset()
+        initial, _ = self.env.reset()  # reset will return observe() result which is (channel,H,W) for gray
         # the same as in load_exploration make input as 4 image stack
         obs_input = initial
         for i in range(self.n_frames - 1):
             obs_input = np.concatenate((obs_input, initial), axis=0)
-        if len(obs_input.shape) < 4:
-            obs_input = obs_input[np.newaxis, ...]
+        # obs_input is (n_frame*c,H,W)
         total_rewards = 0
         total_loss = 0
         learned_times = 0
@@ -201,21 +208,21 @@ class Trainer:
             if random_action or self.eps > random.uniform(0, 1):
                 action = self.env.action_space.sample()
             else:
-                model_input = np.array(obs_input, dtype=np.float32)
-                action = self.get_action(model_input)
+                model_input = np.array(obs_input, dtype=np.float32, copy=True)  # shape is the same as obs_input
+                action = self.get_action(model_input[np.newaxis, ...])  # add new axis to fit (batch,n*c,H,W)
 
-            obs_next, rew, done, _, _ = self.env.step(action)
-            obs_next = obs_next[np.newaxis, ...]
+            obs_next, rew, done, _, _ = self.env.step(action)  # OBS HERE (c,H,W)
+
             total_rewards += rew
             self.steps += 1
 
-            # when get new image update obs_input, concate new image in the last and only show n_
+            # when get new image, update obs_input and concat new image in the last and remove oldest image
             # stacked_obs.append(obs_next)
-            obs_input = np.concatenate((obs_input, obs_next), axis=1)[:, self.channel:, :, :]
+            obs_input = np.concatenate((obs_input, obs_next), axis=0)[self.channel:, :, :]
 
             self.replay_buffer.add(obs_input, action, rew, done)
             if self.reset and self.steps % self.reset == 0:
-                print('model reset')
+                print('------------------model reset------------------')
                 self.model.reset_linear()
                 self._update_target()
             if not random_action:
@@ -226,8 +233,10 @@ class Trainer:
                         total_loss += self.learn()
                         learned_times += 1
             if done:
+                print('--------------------------------------------------------')
                 print('one episode finished')
-                print('win {} / {}'.format(self.env.win_episode, self.env.tot_epi))
+                print('win {} / {}'.format(self.env.win_epi, self.env.total_epi))
+                print('--------------------------------------------------------')
                 break
             t = self.GAP - (time.time() - t)
             if t > 0 and not no_sleep:
@@ -247,20 +256,18 @@ class Trainer:
         evaluate the current policy greedily
         """
         self.model.noise_mode(False)
-        initial, _ = self.env.reset()
-        stacked_obs = deque(
-            (initial for _ in range(self.n_frames)),
-            maxlen=self.n_frames
-        )
+        initial, _ = self.env.reset()  # initial (c,H,W)
+        obs_now = np.array(initial, dtype=initial.dtype, copy=True)
+        for i in range(self.n_frames - 1):
+            obs_now = np.concatenate((obs_now, initial), axis=0)  # obs_now (n*c,H,W)
         rewards = 0
         while True:
             t = time.time()
-            obs_tuple = tuple(stacked_obs)
-            model_input = np.array([obs_tuple], dtype=np.float32)
-            action = self.get_action(model_input)
-            obs_next, rew, done, _, _ = self.env.step(action)
+            model_input = np.array(obs_now, dtype=np.float32, copy=True)
+            action = self.get_action(model_input[np.newaxis, ...])
+            obs_next, rew, done, _, _ = self.env.step(action)  # obs_next (c,h,w)
             rewards += rew
-            stacked_obs.append(obs_next)
+            obs_now = np.concatenate((obs_now, obs_next), axis=0)[self.channel:, :, :]
             if done:
                 break
             t = self.GAP - (time.time() - t)
@@ -358,13 +365,15 @@ class Trainer:
             if not file.endswith('.npz'):
                 continue
             fname = save_loc + file
-            print('loading', os.path.abspath(fname))
+            print('--------------------------------------------------------')
+            print('loading explorations', os.path.abspath(fname))
+            print('--------------------------------------------------------')
             arrs = np.load(fname)
             obs_lst = arrs['o']
             action_lst = arrs['a']
             rew_lst = arrs['r']
             done_lst = arrs['d']
-            assert obs_lst[0].shape == self.env.observation_space.shape  # (x,224,224) x=1 for gray, 3 for rgb
+            assert obs_lst[0].shape == self.env.observation_space.shape  # (c,H,W)
             assert (len(action_lst) == len(rew_lst) ==
                     len(done_lst) == len(obs_lst) - 1)
             stats_imgs.append(obs_lst.flatten())
@@ -404,11 +413,14 @@ class Trainer:
                     p = np.concatenate((p, stacked_obs[i + 1]), axis=0)
                 # concatnate picture
                 # for single_pic in stacked_obs
+                # print(p.shape)                    # p shape (n_frame*c,H,W)
                 self.replay_buffer.add(p, a, r, d)
         stats_imgs = np.concatenate(stats_imgs)
         self.stats = [np.mean(stats_imgs), np.std(stats_imgs)]
+        print('--------------------------------------------------------')
         print('loading complete, with buffer length', len(self.replay_buffer))
         print('loaded data with mean/std', self.stats)
+        print('--------------------------------------------------------')
 
     def save_explorations(self, n_episodes, save_loc='./explorations/'):
         """
@@ -457,7 +469,9 @@ class Trainer:
             rew_lst = np.array(rew_lst, dtype=np.float32)
             done_lst = np.array(done_lst, dtype=np.bool8)
             np.savez_compressed(fname, o=obs_lst, a=action_lst, r=rew_lst, d=done_lst)
+            print('--------------------------------------------------------')
             print(f'saved exploration at {os.path.abspath(fname)}')
+            print('--------------------------------------------------------')
 
     def save_models(self, prefix=''):
         """
@@ -468,6 +482,25 @@ class Trainer:
             torch.save(self.model.state_dict(), './results/' + prefix + 'model.pt')
             torch.save(self.target_model.state_dict(), './results/' + prefix + 'target_model.pt')
             torch.save(self.optimizer.state_dict(), './results/' + prefix + 'optimizer.pt')
+
+    def load_model(self, prefix=None, new_optimizer=False):
+        """
+        :param
+        prefix: 'best' for best evaluation model
+                'best_train' best model in training
+                'latest' latest model
+        new_optimizer: if use new optimizer, choose False to use old optimizer. Only available when prefix is not None
+        """
+        if prefix is None:
+            pass
+        else:
+            if prefix == 'best_train' or 'latest' or 'best':
+                self.model.load_state_dict(torch.load('./results/' + prefix + 'model.pt'))
+                self.target_model.load_state_dict(torch.load('./results/' + prefix + 'target_model.pt'))
+                if not new_optimizer:
+                    self.optimizer.load_state_dict(torch.load('./results/' + prefix + 'optimizer.pt'))
+            else:
+                raise ValueError('only "best" , "best_train" , "latest" is available for prefix')
 
     def log(self, info, log_step):
         """
