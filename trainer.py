@@ -7,18 +7,22 @@ import numpy as np
 from collections import deque
 from kornia import augmentation as K
 from torch.utils.tensorboard import SummaryWriter
+import gc
 
 
 class Trainer:
     GAP = 0.16
-    DEFAULT_STATS = (92.54949702814011,
-                     57.94090462506912)
+    DEFAULT_STATS = (116.22940500946045,
+                     55.05656410931473)
+
+    # this is obtained from tools.get_screen.py
+    # enter the boss room and play, remember to start play first then run the script
 
     def __init__(self, env, replay_buffer,
                  n_frames, gamma, eps, eps_func, target_steps, learn_freq,
                  model, lr, criterion, batch_size, device,
                  is_double=True, DrQ=False, reset=0,
-                 save_loc=None, no_save=False, prefix=None,new_optimizer=False):
+                 save_loc=None, no_save=False, prefix=None, new_optimizer=False):
         """
         Initialize a DQN trainer
         :param env: any gym environment (pixel based recommended but not required)
@@ -193,23 +197,24 @@ class Trainer:
             for group in self.optimizer.param_groups:
                 group['lr'] = max(self.final_lr,
                                   group['lr'] - decay)
-        initial, _ = self.env.reset()  # reset will return observe() result which is (channel,H,W) for gray
-        # the same as in load_exploration make input as 4 image stack
-        obs_input = initial
-        for i in range(self.n_frames - 1):
-            obs_input = np.concatenate((obs_input, initial), axis=0)
-        # obs_input is (n_frame*c,H,W)
+        initial, _ = self.env.reset()  # reset will return observe() result which is (channel,H,W)
+
+        stacked_obs = deque( # (n_f,c,h,w)
+            (initial for _ in range(self.n_frames)),
+            maxlen=self.n_frames
+        )
+
         total_rewards = 0
         total_loss = 0
         learned_times = 0
         while True:
             t = time.time()
-            # obs_tuple = self._process_frames(stacked_obs)
+            obs_tuple = self._process_frames(stacked_obs)
             if random_action or self.eps > random.uniform(0, 1):
                 action = self.env.action_space.sample()
             else:
-                model_input = np.array(obs_input, dtype=np.float32, copy=True)  # shape is the same as obs_input
-                action = self.get_action(model_input[np.newaxis, ...])  # add new axis to fit (batch,n*c,H,W)
+                model_input = np.concatenate(obs_tuple)  # (n_f*c,h,w)
+                action = self.get_action(model_input[np.newaxis, ...])  # so that input is (batch,n*c,H,W)
 
             obs_next, rew, done, _, _ = self.env.step(action)  # OBS HERE (c,H,W)
 
@@ -218,9 +223,8 @@ class Trainer:
 
             # when get new image, update obs_input and concat new image in the last and remove oldest image
             # stacked_obs.append(obs_next)
-            obs_input = np.concatenate((obs_input, obs_next), axis=0)[self.channel:, :, :]
 
-            self.replay_buffer.add(obs_input, action, rew, done)
+            self.replay_buffer.add(stacked_obs, action, rew, done)
             if self.reset and self.steps % self.reset == 0:
                 print('------------------model reset------------------')
                 self.model.reset_linear()
@@ -228,12 +232,10 @@ class Trainer:
             if not random_action:
                 self.eps = self.eps_func(self.eps, self.steps)
                 if len(self.replay_buffer) > self.batch_size and self.steps % self.learn_freq == 0:
-                    # print(self.num_batches)
                     for _ in range(self.num_batches):
                         total_loss += self.learn()
                         learned_times += 1
             if done:
-                print('--------------------------------------------------------')
                 print('one episode finished')
                 print('win {} / {}'.format(self.env.win_epi, self.env.total_epi))
                 print('--------------------------------------------------------')
@@ -241,6 +243,8 @@ class Trainer:
             t = self.GAP - (time.time() - t)
             if t > 0 and not no_sleep:
                 time.sleep(t)
+            if t < 0:
+                print(t)
 
         if not random_action:
             self.replay_buffer.step()
@@ -257,17 +261,21 @@ class Trainer:
         """
         self.model.noise_mode(False)
         initial, _ = self.env.reset()  # initial (c,H,W)
-        obs_now = np.array(initial, dtype=initial.dtype, copy=True)
-        for i in range(self.n_frames - 1):
-            obs_now = np.concatenate((obs_now, initial), axis=0)  # obs_now (n*c,H,W)
+
+        stacked_obs = deque(  # (n_f,c,h,w)
+            (initial for _ in range(self.n_frames)),
+            maxlen=self.n_frames
+        )
+
         rewards = 0
         while True:
             t = time.time()
-            model_input = np.array(obs_now, dtype=np.float32, copy=True)
-            action = self.get_action(model_input[np.newaxis, ...])
+            obs_now = self._process_frames(stacked_obs)
+            model_input = np.concatenate(obs_now) # (n_f*c,h,w)
+            action = self.get_action(model_input[np.newaxis, ...]) # model_input (batch,n_f*c,h,w)
             obs_next, rew, done, _, _ = self.env.step(action)  # obs_next (c,h,w)
             rewards += rew
-            obs_now = np.concatenate((obs_now, obs_next), axis=0)[self.channel:, :, :]
+            stacked_obs.append(obs_next)
             if done:
                 break
             t = self.GAP - (time.time() - t)
@@ -282,6 +290,7 @@ class Trainer:
         sample a single batch and update current model
         :return: per sample loss
         """
+        # obs, obs_next shape (batch,n_f*c,h,w) see buffer.py
         if self.replay_buffer.prioritized:
             (obs, act, rew, obs_next, done), indices = \
                 self.replay_buffer.prioritized_sample(self.batch_size)
@@ -333,7 +342,7 @@ class Trainer:
                 weights = self.replay_buffer.update_priority(error, indices)
                 weights = torch.tensor(weights, device=self.device)
                 loss = loss * weights.reshape(loss.shape)
-        loss = loss.mean()
+            loss = loss.mean()
         self.scaler.scale(loss).backward()
         self.scaler.unscale_(self.optimizer)
         torch.nn.utils.clip_grad_norm_(self.model.parameters(), 10.)
@@ -353,16 +362,25 @@ class Trainer:
             self._learn_since_replace += 1
         return loss
 
-    def load_explorations(self, save_loc='./explorations/'):
+    def load_explorations(self, save_loc='./explorations/', number=18):
         """
-        load all explorations from given environment into the replay buffer
+        load given number of explorations randomly from given environment into the replay buffer
         :param save_loc: directory where the explorations can be found
+        :param number : number of exploration that will be loaded
         """
         assert not save_loc.endswith('\\')
         stats_imgs = []
         save_loc = save_loc if save_loc.endswith('/') else f'{save_loc}/'
+
+        tot = 0
+        for file in os.listdir(save_loc):
+            if file.endswith('.npz'):
+                tot += 1
+        choose_list = sorted(np.random.choice(tot, number, False))
         for file in os.listdir(save_loc):
             if not file.endswith('.npz'):
+                continue
+            if int(file.split('.')[0]) not in choose_list:
                 continue
             fname = save_loc + file
             print('--------------------------------------------------------')
@@ -377,44 +395,27 @@ class Trainer:
             assert (len(action_lst) == len(rew_lst) ==
                     len(done_lst) == len(obs_lst) - 1)
             stats_imgs.append(obs_lst.flatten())
+
             # we use deque here, when append on element and deque is full
             # all element will move one step ahead(index 1 -> index 0 , delete data in index 0 )
             # So that we can manage build image stack step by step
 
-            # --------------------------- no use --------------------------------------
-            # stacked_obs = deque(                                            # (4,x,224,224)
-            #     (obs_lst[0] for _ in range(self.n_frames)),
-            #     maxlen=self.n_frames
-            # )
-            # ------------------------------------------------------------------
-
-            stacked_obs = deque(  # start from (0,1,2,3)
-                (obs_lst[i] for i in range(self.n_frames)),
-                maxlen=self.n_frames
-            )
-            # Here we pack 4 states together as one state, use first state's action reward as input
-            # The purpose of this is to enlarge model robustness
-            # attention! here we should concatnate four pictures together
-
+            stacked_obs = deque(  # elements in deque : n_frame*((c,h,w))
+                (obs_lst[0] for _ in range(self.n_frames)),
+                maxlen=self.n_frames)
             # --------------------------- no use --------------------------------------
             # for o, a, r, d in zip(obs_lst[1:], action_lst, rew_lst, done_lst):
             #     obs_tuple = self._process_frames(stacked_obs)
             #     stacked_obs.append(o)
             #     # concatnate picture
-            #     #for single_pic in stacked_obs
+            #     # for single_pic in stacked_obs
             #     self.replay_buffer.add(obs_tuple, a, r, d)
             #     print('trainer 375')
             #     print(np.array(obs_tuple).shape)
             # ------------------------------------------------------------------
-            for o, a, r, d in zip(obs_lst[4:], action_lst, rew_lst, done_lst):
-                stacked_obs.append(o)
-                p = stacked_obs[0]
-                for i in range(self.n_frames - 1):  # each element in stacked_obs is ndarray (channel,H,W)
-                    p = np.concatenate((p, stacked_obs[i + 1]), axis=0)
-                # concatnate picture
-                # for single_pic in stacked_obs
-                # print(p.shape)                    # p shape (n_frame*c,H,W)
-                self.replay_buffer.add(p, a, r, d)
+            for o, a, r, d in zip(obs_lst[1:], action_lst, rew_lst, done_lst):
+                stacked_obs.append(o)  # doesnt change shape
+                self.replay_buffer.add(stacked_obs, a, r, d)  # data type (deque[n_f,c,h,w],int,float,bool)
         stats_imgs = np.concatenate(stats_imgs)
         self.stats = [np.mean(stats_imgs), np.std(stats_imgs)]
         print('--------------------------------------------------------')

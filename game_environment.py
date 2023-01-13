@@ -60,7 +60,7 @@ class DCEnv(gym.Env):
     # HP_CKPT = [64, 99, 135, 171, 207, 242, 278, 314, 352]
     ACTIONS = [Move, Attack, Jump]
 
-    def __init__(self, obs_shape=(224, 224), w1=1., w2=1., w3=-0.0001,rgb=False):
+    def __init__(self, obs_shape=(224, 224), w1=1., w2=1., w3=-0.0001, rgb=False):
         """
         :param obs_shape: the shape of observation returned by step and reset
         :param w1: the weight of negative reward when being hit
@@ -79,7 +79,7 @@ class DCEnv(gym.Env):
         self.prev_action = -1
         total_actions = np.prod([len(Act) for Act in self.ACTIONS])
         self.observation_space = gym.spaces.Box(low=0, high=255,
-                                                dtype=np.uint8, shape=(1,) + obs_shape)
+                                                dtype=np.uint8, shape=(3 if self.rgb else 1,) + obs_shape)
         self.action_space = gym.spaces.Discrete(int(total_actions))
 
         self.w1 = w1
@@ -213,7 +213,7 @@ class DCEnv(gym.Env):
         if not self.rgb:
             obs = cv2.cvtColor(obs, cv2.COLOR_BGR2GRAY)  # return shape e.g. (1,H,W)
             return obs[np.newaxis, ...], self.cl.get_self_hp(), self.cl.get_boss_hp(), \
-               self.cl.get_self_location(), self.cl.get_boss_loca()
+                   self.cl.get_self_location(), self.cl.get_boss_loca()
         else:
             print('game_environment line 218')
             print(obs.shape)
@@ -222,26 +222,26 @@ class DCEnv(gym.Env):
     def step(self, actions):
         action_rew = 0
         if actions == self.prev_action:
-            action_rew -= 2e-5
+            action_rew -= 6e-6
         self.prev_action = actions
         actions = self._to_multi_discrete(actions)
         action_rew += self._step_actions(actions)
-        obs, self_hp, boss_hp, self_location, boss_location = self.observe()
+        obs, self_hp, boss_hp, self_location, boss_location = self.observe() # obs(c,h,w)
         # this win lose condition is tested from game and Cheat Engine,
         # you can use tools.get_hp_location.py and Cheat Engine to check
         win = boss_hp == 1 and self_hp >= 1
         lose = self_hp == 1 and self_location == 0
         done = win or lose
 
-        hurt = self_hp < self.prev_self_hp
-        hit = boss_hp < self.prev_boss_hp
+        hurt_value = min(0, self_hp - self.prev_self_hp)
+        hit_value = max(0, self.prev_boss_hp - boss_hp)
         reward = (
-                - self.w1 * hurt
-                + self.w2 * hit
+                + self.w1 * hurt_value
+                + self.w2 * hit_value
                 + action_rew
         )
-        if not (hurt or hit):
-            reward += self.w3
+        if not (hurt_value < 0 or hit_value > 0):
+            reward -= self.w3
         if win:  # extra reward for winning based on conditions
             time_rew = 5. / (time.time() - self._episode_time)
             reward += self_hp / 40. + time_rew
@@ -261,62 +261,30 @@ class DCEnv(gym.Env):
     # when boss fight is finished player's location is 123 boss location is 0
     # player walks to either 128 129 130, then press R to enter boss room
 
-    # def reset(self, seed=None, options=None):
-    #     super(DCEnv, self).reset(seed=seed)
-    #     print('reset')
-    #     self.cleanup()
-    #     while self.cl.get_self_location() < 100:  # still in boss room waiting to quit
-    #         time.sleep(3)
-    #     while 100 < self.cl.get_self_location() <= 127:  # when finish boss fight player will start at position 123
-    #         pyautogui.keyDown('d')
-    #     pyautogui.keyUp('d')
-    #     time.sleep(1)
-    #     while 132 < self.cl.get_self_location():  # when finish boss fight player will start at position 123
-    #         pyautogui.keyDown('a')
-    #     pyautogui.keyUp('a')
-    #     time.sleep(1)
-    #     while 128 <= self.cl.get_self_location() <= 131:  # press r to enter boss room
-    #         pyautogui.press('r')
-    #         time.sleep(3)
-    #     print('entered boss room')
-    #     if self.cl.get_self_location() > 138:
-    #         print('reset error')
-    #     while self.cl.get_boss_hp() == 0:  # loading boss room
-    #         time.sleep(3)
-    #     while self.cl.get_self_location() < 46:  # need to move from 20 to 46
-    #         pyautogui.keyDown('d')
-    #     pyautogui.keyUp('d')
-    #     self.prev_self_hp, self.prev_boss_hp = self.cl.get_self_hp(), self.cl.get_boss_hp()
-    #     self._episode_time = time.time()
-    #     return self.observe()[0], None
-
+    # this works perfect for Concierge 看守者
     def reset(self, seed=None, option=None):
         super(DCEnv, self).reset(seed=seed)
-        print('-------------------------reset-------------------------')
+        print('reset')
         self.cleanup()
         while self.cl.get_self_location() < 100:  # still in boss room waiting to quit
             time.sleep(5)  # longer time here more stable this function
 
-        # in the boss-selection room:
-        # within 128-131 can press r for 127 sometimes cant press r
-        # block here guarantee character will step into boss room
         while self.cl.get_self_location() > 50:
             while not 127 < self.cl.get_self_location() < 132:
-                while self.cl.get_self_location() >= 132:
-                    pyautogui.keyDown('a')
-                pyautogui.keyUp('a')
-                time.sleep(1.5)
                 while self.cl.get_self_location() <= 127:
                     pyautogui.keyDown('d')
-                pyautogui.keyUp('d')
-                time.sleep(1.5)
+                    time.sleep(0.2)
+                    pyautogui.keyUp('d')
+                time.sleep(0.1)
+                while self.cl.get_self_location() >= 132:
+                    pyautogui.press('a')
+                    time.sleep(0.05)
+                time.sleep(0.1)
             # in the region where player can press r
             if 128 <= self.cl.get_self_location() <= 131:  # press r to enter boss room
                 pyautogui.press('r')
                 time.sleep(3)
-        print('--------------------------------------------------------')
         print('entered boss room')
-        print('--------------------------------------------------------')
         while self.cl.get_boss_hp() == 0:  # loading boss room
             time.sleep(3)
         while self.cl.get_self_location() < 46:  # need to move from 20 to 46

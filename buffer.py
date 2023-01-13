@@ -113,13 +113,13 @@ class Buffer:
     def _to_numpy(batch):
         obs, act, rew, obs_next, done = [], [], [], [], []
         for o, a, r, o_, d in batch:
-            obs.append(o)    # obs shape in buffer, each shape is (n_frame*c,H,W) see trainer.py load_exploration.py
+            obs.append(np.concatenate(o))
             act.append(a)
             rew.append(r)
-            obs_next.append(o_)
+            obs_next.append(np.concatenate(o_))
             done.append(d)
 
-        return (np.array(obs, copy=True, dtype=np.float32),
+        return (np.array(obs, copy=True, dtype=np.float32),   # (batch,n_frame*channel,h,w)
                 np.array(act, copy=True, dtype=np.int64)[:, np.newaxis],
                 np.array(rew, copy=True, dtype=np.float32)[:, np.newaxis],
                 np.array(obs_next, copy=True, dtype=np.float32),
@@ -129,7 +129,7 @@ class Buffer:
     def is_full(self):
         return len(self.buffer) == self.maxlen
 
-    def add(self, obs, act, rew, done):
+    def add(self, obs, act, rew, done):  # obs here is a deque (n_f,c,h,w)
         self._temp_buffer.append((obs, act, rew, done))
         if len(self._temp_buffer) == 2:
             obs_, act_, rew_, done_ = self._temp_buffer.pop(0)
