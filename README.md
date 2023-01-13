@@ -35,11 +35,11 @@ add necessary tools
 
 fix all bugs now it can run whole forward and backward adding necessary comments for better reading.
 
-### Important Features
-
 1/12-1/13 2023
 Very happy to have a chat with seemer. Updating saving and loading and buffer sample logic/data type. Only concate when using buffer data.
 Used new reward system.
+
+### Important Features
 
 here contains some points you may need to concern. All those things are mentioned in code comments.
 
