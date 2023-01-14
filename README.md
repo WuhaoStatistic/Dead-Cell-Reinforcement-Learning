@@ -39,6 +39,8 @@ fix all bugs now it can run whole forward and backward adding necessary comments
 Very happy to have a chat with seemer. Updating saving and loading and buffer sample logic/data type. Only concate when using buffer data.
 Used new reward system.
 
+1/14 2023
+Train 2 new models one attack only one defend only. I think the problem is because reward from shield or attack is imbalanced. Will try to fix.
 ### Important Features
 
 here contains some points you may need to concern. All those things are mentioned in code comments.
