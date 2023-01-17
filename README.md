@@ -1,6 +1,6 @@
 # Dead-Cell-Reinforcement-Learning
 
-**On going project**
+**On going project** (currently suspended due to master thesis and writing phd research proposal)
 
 This is the repo for reinforcement learning. Play around with Dead Cell this game!  
 **please also star [ailec0623](https://github.com/ailec0623/DQN_HollowKnight) and [seemer](https://github.com/seermer/HollowKnight_RL), part of the skeleton are from these two repos.** 
@@ -41,6 +41,9 @@ Used new reward system.
 
 1/14 2023
 Train 2 new models one attack only one defend only. I think the problem is because reward from shield or attack is imbalanced. Will try to fix.
+But one interesting thing is the defend-only model can pass 10/10 evaluations. The boss just stack there and stupidly repeat base attack and get 
+returned damage from shield.
+
 ### Important Features
 
 here contains some points you may need to concern. All those things are mentioned in code comments.
